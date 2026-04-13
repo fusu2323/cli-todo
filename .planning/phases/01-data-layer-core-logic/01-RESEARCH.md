@@ -18,7 +18,7 @@ Phase 1 implements a greenfield data layer for the CLI Todo Manager. The core de
 - **D-01:** Hex UUID via `crypto/rand` + hex encoding — 32-character hex string
 - **D-02:** `sync.Mutex` — simple single-lock approach
 - **D-03:** Concrete `JSONFileStore` struct with `Load()` and `Save()` methods — no interface abstraction
-- **Atomic Writes:** Write to temp file via `os.MkdirTemp`, then rename via `os.Rename`
+- **Atomic Writes:** Write to temp file via `os.CreateTemp`, then rename via `os.Rename`
 - **Category:** Optional `category` string field (empty string = uncategorized)
 - **JSON Structure:** Flat array `[]Task`, human-readable via `json.MarshalIndent` with `"  "` indent
 - **File Location:** `~/.todo.json` via `os.UserHomeDir()`
@@ -47,7 +47,7 @@ None — no deferred ideas matched Phase 1 scope.
 | CAT-02 | List command can filter tasks by category | `Store.List(category)` filter logic |
 | DATA-01 | Concurrent reads/writes don't corrupt JSON (mutex protection) | `sync.Mutex` embedded in `JSONFileStore` |
 | DATA-02 | First run (file doesn't exist) returns empty task list without error | `Load()` returns `[]Task{}` when file not found |
-| DATA-03 | Atomic writes — write to temp file then rename | `os.MkdirTemp` + `os.Rename` pattern |
+| DATA-03 | Atomic writes — write to temp file then rename | `os.CreateTemp` + `os.Rename` pattern |
 
 ---
 
@@ -60,7 +60,7 @@ None — no deferred ideas matched Phase 1 scope.
 | `crypto/rand` | stdlib | UUID generation | No external deps; `crypto/rand.Read` + hex encoding |
 | `sync.Mutex` | stdlib | Concurrent access protection | DATA-01 requirement |
 | `encoding/json` | stdlib | JSON serialization | `MarshalIndent` for readable output |
-| `os` | stdlib | File I/O, home dir | `ReadFile`, `WriteFile`, `MkdirTemp`, `Rename`, `UserHomeDir` |
+| `os` | stdlib | File I/O, home dir | `ReadFile`, `WriteFile`, `CreateTemp`, `Rename`, `UserHomeDir` |
 
 ### Project Structure
 ```
@@ -128,10 +128,14 @@ func generateUUID() (string, error) {
 ```go
 // Source: [VERIFIED — Go stdlib os docs]
 func (s *JSONFileStore) saveAtomic(data []byte) error {
-    tmp, err := os.MkdirTemp("", "todo-*.tmp")
+    // CreateTemp creates a FILE (not a directory) in the parent directory.
+    f, err := os.CreateTemp(filepath.Dir(s.path), "todo-*.tmp")
     if err != nil {
         return err
     }
+    tmp := f.Name()
+    f.Close() // Close file handle before WriteFile
+
     defer os.Remove(tmp) // cleanup on failure
 
     if err := os.WriteFile(tmp, data, 0644); err != nil {
@@ -172,7 +176,7 @@ func (s *JSONFileStore) Load() ([]Task, error) {
 |---------|-------------|-------------|-----|
 | UUID generation | Custom random string | `crypto/rand` + `hex.EncodeToString` | cryptographically secure, no deps |
 | File locking | OS-level file locks | `sync.Mutex` per store instance | simpler, sufficient for single-user CLI |
-| Atomic writes | Partial-write detection | `os.MkdirTemp` + `os.Rename` | stdlib, proven, portable |
+| Atomic writes | Partial-write detection | `os.CreateTemp` + `os.Rename` | stdlib, proven, portable |
 | Home directory | `~/.todo` hardcoding | `os.UserHomeDir()` | cross-platform (Windows/macOS/Linux) |
 
 ---
@@ -310,10 +314,14 @@ func (s *JSONFileStore) saveLocked(tasks []Task) error {
     if err != nil {
         return err
     }
-    tmp, err := os.MkdirTemp("", "todo-*.tmp")
+    // CreateTemp creates a FILE (not a directory) in the parent directory.
+    f, err := os.CreateTemp(filepath.Dir(s.path), "todo-*.tmp")
     if err != nil {
         return err
     }
+    tmp := f.Name()
+    f.Close() // Close file handle before WriteFile
+
     defer os.Remove(tmp) // safe if file already moved
 
     if err := os.WriteFile(tmp, data, 0644); err != nil {
@@ -394,11 +402,11 @@ func (s *JSONFileStore) Delete(id string) error {
 | Integer auto-increment IDs | UUID via crypto/rand | Project start | Eliminates race conditions, no ID reuse |
 | Global var for tasks slice | Store instance passed via dependencies | Project start | Testable, no hidden state |
 | Write directly to file | Temp file + rename | Project start | No corruption on interrupted writes |
-| ioutil (deprecated) | os.ReadFile, os.WriteFile, os.MkdirTemp | Go 1.16+ | Future-proof |
+| ioutil (deprecated) | os.ReadFile, os.WriteFile, os.CreateTemp | Go 1.16+ | Future-proof |
 
 **Deprecated/outdated:**
 - `ioutil.ReadFile` / `ioutil.WriteFile` — replaced by `os` equivalents in Go 1.16+
-- `ioutil.TempDir` — replaced by `os.MkdirTemp` in Go 1.16+
+- `ioutil.TempDir` — replaced by `os.CreateTemp` in Go 1.16+
 
 ---
 
@@ -414,22 +422,22 @@ func (s *JSONFileStore) Delete(id string) error {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Task struct JSON field names**
+1. **Task struct JSON field names** (RESOLVED)
    - What we know: CONTEXT.md says `CreatedAt` is in scope, `created_at` is a naming option
    - What's unclear: Whether to use `CreatedAt` (Go convention) vs `created_at` (JSON convention)
-   - Recommendation: Use Go conventions for struct fields (`CreatedAt`), JSON tags can override for serialization
+   - Resolution: Use Go conventions for struct fields (`CreatedAt`), JSON tags can override for serialization
 
-2. **`UpdatedAt` field**
+2. **`UpdatedAt` field** (RESOLVED)
    - What we know: Listed as Claude's discretion in CONTEXT.md
    - What's unclear: Whether Phase 1 needs last-modified tracking
-   - Recommendation: Omit for Phase 1; add in Phase 2 if needed for feature requests
+   - Resolution: Omit for Phase 1; add in Phase 2 if needed for feature requests
 
-3. **Store methods returning error vs panic on corrupted JSON**
+3. **Store methods returning error vs panic on corrupted JSON** (RESOLVED)
    - What we know: DATA-02 says corrupted JSON returns clear error (not panic)
    - What's unclear: Whether to return error and let caller decide, or log and return empty list
-   - Recommendation: Return error (Phase 2 will add context via `fmt.Errorf %w`)
+   - Resolution: Return error (Phase 2 will add context via `fmt.Errorf %w`)
 
 ---
 
@@ -437,8 +445,8 @@ func (s *JSONFileStore) Delete(id string) error {
 
 | Dependency | Required By | Available | Version | Fallback |
 |------------|------------|-----------|---------|----------|
-| Go | Build/Run | ✓ | 1.26.1 | — |
-| git | Version control | ✓ | (system) | — |
+| Go | Build/Run | Yes | 1.26.1 | — |
+| git | Version control | Yes | (system) | — |
 
 **Missing dependencies with no fallback:**
 None — all required tools are available.
@@ -504,7 +512,7 @@ None — no external dependencies needed per project constraint.
 | Path traversal via task ID | Tampering | IDs are hex-encoded UUIDs, not user-controlled paths |
 | JSON injection | Tampering | `encoding/json` escapes special characters automatically |
 | Concurrent write corruption | Denial | `sync.Mutex` ensures serialized access |
-| Temp file symlink attack | Tampering | `os.MkdirTemp` creates secure temp directory |
+| Temp file symlink attack | Tampering | `os.CreateTemp` creates secure temp directory |
 
 ---
 
@@ -513,7 +521,7 @@ None — no external dependencies needed per project constraint.
 ### Primary (HIGH confidence)
 - [Go sync.Mutex documentation](https://pkg.go.dev/sync#Mutex) — mutex patterns
 - [Go crypto/rand documentation](https://pkg.go.dev/crypto/rand) — UUID generation
-- [Go os documentation](https://pkg.go.dev/os) — ReadFile, WriteFile, MkdirTemp, Rename, UserHomeDir
+- [Go os documentation](https://pkg.go.dev/os) — ReadFile, WriteFile, CreateTemp, Rename, UserHomeDir
 - [Go encoding/json documentation](https://pkg.go.dev/encoding/json) — MarshalIndent, Unmarshal
 - [Go filepath documentation](https://pkg.go.dev/path/filepath) — Join for cross-platform paths
 

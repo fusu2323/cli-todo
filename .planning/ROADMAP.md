@@ -30,7 +30,12 @@ A fast, reliable, local-first todo manager that just works. No accounts, no clou
 5. First run (no existing file) returns an empty task list without error
 6. Concurrent reads and writes don't corrupt the JSON data file
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Task model: go.mod, Task struct, NewTask constructor, UUID generation
+- [ ] 01-02-PLAN.md — JSONFileStore: mutex-protected CRUD, atomic writes, category filtering
+- [ ] 01-03-PLAN.md — Concurrency tests: concurrent access, atomic write verification
 
 ---
 
@@ -63,7 +68,7 @@ A fast, reliable, local-first todo manager that just works. No accounts, no clou
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Data Layer & Core Logic | 0/6 | Not started | - |
+| 1. Data Layer & Core Logic | 0/3 | Not started | - |
 | 2. CLI Interface & Polish | 0/10 | Not started | - |
 
 ---

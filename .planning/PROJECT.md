@@ -18,10 +18,12 @@ A fast, reliable, local-first todo manager that just works. No accounts, no clou
 - [x] User can delete a task — Phase 01 (TASK-04)
 - [x] Tasks persist to ~/.todo.json between sessions — Phase 01 (DATA-01, DATA-02, DATA-03)
 - [x] Proper error handling for file I/O, invalid input, missing tasks — Phase 01
+- [x] Error wrapping with %w for CLI error type checking — Phase 02 (ERR-01, ERR-02, ERR-03)
+- [x] CLI subcommand routing (add/list/done/delete/help) via flag.FlagSet — Phase 02 (CLI-01 through CLI-06)
 
 ### Active
 
-(None yet — Phase 2 will add CLI interface requirements)
+(None)
 
 ### Out of Scope
 

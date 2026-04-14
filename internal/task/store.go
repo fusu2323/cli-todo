@@ -51,7 +51,7 @@ func (s *JSONFileStore) loadLocked() ([]Task, error) {
 	}
 	var tasks []Task
 	if err := json.Unmarshal(data, &tasks); err != nil {
-		return nil, err // DATA-02: corrupted JSON returns error
+		return nil, fmt.Errorf("corrupted todo file: %w", err)
 	}
 	return tasks, nil
 }
@@ -135,7 +135,7 @@ func (s *JSONFileStore) MarkDone(id string) error {
 			return s.saveLocked(tasks)
 		}
 	}
-	return fmt.Errorf("task not found: %s", id) // Phase 2: custom ErrTaskNotFound
+	return fmt.Errorf("task not found: %s: %w", id, ErrTaskNotFound)
 }
 
 // Delete removes the task with the given ID from the store.
@@ -153,7 +153,7 @@ func (s *JSONFileStore) Delete(id string) error {
 			return s.saveLocked(tasks)
 		}
 	}
-	return fmt.Errorf("task not found: %s", id)
+	return fmt.Errorf("task not found: %s: %w", id, ErrTaskNotFound)
 }
 
 // ErrTaskNotFound is returned when a task is not found (placeholder for Phase 2).

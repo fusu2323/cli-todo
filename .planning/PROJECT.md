@@ -12,16 +12,16 @@ A fast, reliable, local-first todo manager that just works. No accounts, no clou
 
 ### Validated
 
-(None yet — ship to validate)
+- [x] User can add a new task with a title and optional category — Phase 01 (TASK-01, CAT-01)
+- [x] User can list all tasks (optionally filtered by category) — Phase 01 (TASK-02, CAT-02)
+- [x] User can mark a task as complete — Phase 01 (TASK-03)
+- [x] User can delete a task — Phase 01 (TASK-04)
+- [x] Tasks persist to ~/.todo.json between sessions — Phase 01 (DATA-01, DATA-02, DATA-03)
+- [x] Proper error handling for file I/O, invalid input, missing tasks — Phase 01
 
 ### Active
 
-- [ ] User can add a new task with a title and optional category
-- [ ] User can list all tasks (optionally filtered by category)
-- [ ] User can mark a task as complete
-- [ ] User can delete a task
-- [ ] Tasks persist to ~/.todo.json between sessions
-- [ ] Proper error handling for file I/O, invalid input, missing tasks
+(None yet — Phase 2 will add CLI interface requirements)
 
 ### Out of Scope
 
@@ -55,7 +55,9 @@ The user is comfortable with programming basics and is learning Go specifically.
 | flag (standard lib) over cobra | Less magic, more Go-idiomatic, better for learning how CLI args actually work | — Pending |
 | JSON over CSV | Extensible, standard library support, easier to add fields later | — Pending |
 | ~/.todo.json storage | Cross-platform home dir, persistent, hidden file keeps dir clean | — Pending |
-| Categories/tags | Simple string field, not full tagging system — enough for v1 organization | — Pending |
+| Categories/tags | Simple string field, not full tagging system — enough for v1 organization | Validated (Phase 01) |
+| sync.Mutex | Simple single-lock approach for concurrent access | Validated (Phase 01) |
+| Atomic writes | CreateTemp + Rename for cross-platform safety | Validated (Phase 01) |
 
 ## Evolution
 

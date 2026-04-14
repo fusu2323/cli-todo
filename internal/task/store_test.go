@@ -1,8 +1,11 @@
 package task
 
 import (
+	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 )
 
@@ -306,5 +309,71 @@ func TestDelete(t *testing.T) {
 	err = store.Delete("nonexistent-id")
 	if err == nil {
 		t.Error("expected error for Delete on non-existent ID")
+	}
+}
+
+func TestConcurrentAccess(t *testing.T) {
+	// Create temp store
+	tmpDir, err := os.MkdirTemp("", "todo-concurrent-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	storePath := filepath.Join(tmpDir, "concurrent.json")
+	store, err := NewJSONFileStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Launch concurrent operations
+	var wg sync.WaitGroup
+	numGoroutines := 10
+	numOpsPerGoroutine := 20
+
+	for i := 0; i < numGoroutines; i++ {
+		wg.Add(1)
+		go func(goroutineID int) {
+			defer wg.Done()
+			for j := 0; j < numOpsPerGoroutine; j++ {
+				task, err := NewTask(fmt.Sprintf("Task-%d-%d", goroutineID, j), "")
+				if err != nil {
+					t.Errorf("NewTask error: %v", err)
+					return
+				}
+				if err := store.Add(task); err != nil {
+					t.Errorf("Add error: %v", err)
+					return
+				}
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify all tasks were added (no data loss)
+	allTasks, err := store.List("")
+	if err != nil {
+		t.Fatalf("List error: %v", err)
+	}
+
+	expectedCount := numGoroutines * numOpsPerGoroutine
+	if len(allTasks) != expectedCount {
+		t.Errorf("Expected %d tasks, got %d (data loss detected)", expectedCount, len(allTasks))
+	}
+
+	// Verify file is valid JSON (no corruption)
+	data, err := os.ReadFile(storePath)
+	if err != nil {
+		t.Fatalf("ReadFile error: %v", err)
+	}
+
+	var verifyTasks []Task
+	if err := json.Unmarshal(data, &verifyTasks); err != nil {
+		t.Fatalf("JSON corruption detected: %v", err)
+	}
+
+	if len(verifyTasks) != expectedCount {
+		t.Errorf("File JSON has %d tasks but store has %d (file/store mismatch)", len(verifyTasks), expectedCount)
 	}
 }

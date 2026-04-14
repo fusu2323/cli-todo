@@ -33,9 +33,9 @@ A fast, reliable, local-first todo manager that just works. No accounts, no clou
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Task model: go.mod, Task struct, NewTask constructor, UUID generation
-- [ ] 01-02-PLAN.md — JSONFileStore: mutex-protected CRUD, atomic writes, category filtering
-- [ ] 01-03-PLAN.md — Concurrency tests: concurrent access, atomic write verification
+- [x] 01-01-PLAN.md — Task model: go.mod, Task struct, NewTask constructor, UUID generation
+- [x] 01-02-PLAN.md — JSONFileStore: mutex-protected CRUD, atomic writes, category filtering
+- [x] 01-03-PLAN.md — Concurrency tests: concurrent access, atomic write verification
 
 ---
 

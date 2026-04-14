@@ -1,6 +1,7 @@
 package task
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -375,5 +376,61 @@ func TestConcurrentAccess(t *testing.T) {
 
 	if len(verifyTasks) != expectedCount {
 		t.Errorf("File JSON has %d tasks but store has %d (file/store mismatch)", len(verifyTasks), expectedCount)
+	}
+}
+
+func TestAtomicWrite(t *testing.T) {
+	// Create temp store
+	tmpDir, err := os.MkdirTemp("", "todo-atomic-test")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	storePath := filepath.Join(tmpDir, "atomic.json")
+	store, err := NewJSONFileStore(storePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Add initial tasks
+	for i := 0; i < 5; i++ {
+		task, _ := NewTask(fmt.Sprintf("Initial-%d", i), "")
+		store.Add(task)
+	}
+
+	// Verify initial state is valid JSON
+	data1, _ := os.ReadFile(storePath)
+	var tasks1 []Task
+	if err := json.Unmarshal(data1, &tasks1); err != nil {
+		t.Fatalf("Initial file corrupted: %v", err)
+	}
+
+	// Add more tasks
+	for i := 0; i < 5; i++ {
+		task, _ := NewTask(fmt.Sprintf("After-%d", i), "")
+		store.Add(task)
+	}
+
+	// Verify new state is valid JSON
+	data2, _ := os.ReadFile(storePath)
+	var tasks2 []Task
+	if err := json.Unmarshal(data2, &tasks2); err != nil {
+		t.Fatalf("After write file corrupted: %v", err)
+	}
+
+	if len(tasks2) != 10 {
+		t.Errorf("Expected 10 tasks after atomic write, got %d", len(tasks2))
+	}
+
+	// Verify file has proper JSON structure (array starts with [)
+	if len(data2) == 0 || data2[0] != '[' {
+		t.Errorf("File does not contain valid JSON array")
+	}
+
+	// Verify file ends with ] (complete JSON)
+	trimmed := bytes.TrimSpace(data2)
+	if len(trimmed) == 0 || trimmed[len(trimmed)-1] != ']' {
+		t.Errorf("JSON array not properly closed")
 	}
 }
